@@ -1,0 +1,13 @@
+passo a passo forms
+
+abrir site forms
+colocar na aba "programa/atividade de PD&I" 
+logar na extensão com o google do domínio da piera (caso já não esteja logado)
+clicar na opção forms da extensão
+adicionar o newpitt
+selecionar os projetos que quer que sejam cadastrados 
+adicionar anexos (os arquivos tem que começar com o número correspondente ao projeto ex: 1_anexoTrl)
+clicar no sinal de play para rodar
+
+possíveis erros
+erro de preenchimento - ao abrir o log aparece o campo e o que está errado nele

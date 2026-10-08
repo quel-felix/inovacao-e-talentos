@@ -1,0 +1,171 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/open-sans";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --container-content: 1200px;
+    --font-heading: var(--font-sans);
+    --font-sans: 'Open Sans Variable', sans-serif;
+    --font-brand: 'Open Sans Variable', sans-serif;
+    /* Identidade visual Inovação & Talentos (mesma base de cores da PierX):
+       azul noite, verde e laranja são as três cores da marca; azul piera,
+       azul água, areia e off-white completam a paleta. */
+    --color-night-blue: var(--night-blue);
+    --color-water-blue: var(--water-blue);
+    --color-sand: var(--sand);
+    --color-pierx-green: var(--pierx-green);
+    --color-flag-yellow: var(--flag-yellow);
+    --color-piera-blue: var(--piera-blue);
+    --color-off-white: var(--off-white);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --color-status-critical: var(--status-critical);
+    --color-status-warning: var(--status-warning);
+    --color-status-good: var(--status-good);
+    --color-status-neutral: var(--status-neutral);
+    --color-series-8: var(--series-8);
+    --color-series-7: var(--series-7);
+    --color-series-6: var(--series-6);
+    --color-series-5: var(--series-5);
+    --color-series-4: var(--series-4);
+    --color-series-3: var(--series-3);
+    --color-series-2: var(--series-2);
+    --color-series-1: var(--series-1);
+    --color-chart-6: var(--chart-6);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+    /* Cores do logo e dos patterns de Inovação & Talentos. */
+    --night-blue: #0f3659;
+    --pierx-green: #11514e;
+    --flag-yellow: #ffab24;
+    --piera-blue: #2f88a3;
+    --off-white: #fffbf3;
+    /* Azul água e areia: tons de apoio da faixa de quartos de círculo. */
+    --water-blue: #6fa9b8;
+    --sand: #eeebe4;
+
+    --background: var(--off-white);
+    --foreground: var(--night-blue);
+    --card: oklch(1 0 0);
+    --card-foreground: var(--night-blue);
+    --popover: oklch(1 0 0);
+    --popover-foreground: var(--night-blue);
+    /* Laranja da marca: cor de ação (botões "Submeta seu projeto"/"Entrar" do
+       site), sempre com texto azul noite — branco sobre laranja não tem contraste. */
+    --primary: var(--flag-yellow);
+    --primary-foreground: var(--night-blue);
+    --secondary: var(--sand);
+    --secondary-foreground: var(--night-blue);
+    /* Bege do item ativo do menu do site. */
+    --muted: #f4efe6;
+    --muted-foreground: #586a7e;
+    /* Verde PierX: cor de detalhe/estado positivo (ex.: barra "Lei do Bem" no comparativo). */
+    --accent: var(--pierx-green);
+    --accent-foreground: var(--off-white);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: #e8e2d6;
+    --input: #ddd6c8;
+    --ring: var(--piera-blue);
+    --chart-1: oklch(0.436 0.075 193.5);
+    --chart-2: oklch(0.813 0.16 167);
+    --chart-3: oklch(0.648 0.079 194.3);
+    --chart-4: oklch(0.847 0.057 196.1);
+    --chart-5: oklch(0.887 0.003 228.8);
+    --chart-6: oklch(0.577 0.16 195);
+    --series-1: #2a78d6;
+    --status-neutral: #8b9797;
+    --status-good: var(--accent);
+    --status-warning: #d0901e;
+    --status-critical: var(--destructive);
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+    --series-4: #eda100;
+    --series-5: #e87ba4;
+    --series-6: #008300;
+    --series-7: #4a3aa7;
+    --series-8: #e34948;
+    --radius: 0.75rem;
+}
+
+.dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0.01 195);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0.01 195);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.72 0.1 193.5);
+    --primary-foreground: oklch(0.15 0.02 194);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0.01 195);
+    --muted-foreground: oklch(0.708 0.02 195);
+    --accent: oklch(0.813 0.16 167);
+    --accent-foreground: oklch(0.15 0.02 194);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.6 0.09 194);
+    --chart-1: oklch(0.436 0.075 193.5);
+    --chart-2: oklch(0.813 0.16 167);
+    --chart-3: oklch(0.648 0.079 194.3);
+    --chart-4: oklch(0.847 0.057 196.1);
+    --chart-5: oklch(0.887 0.003 228.8);
+    --chart-6: oklch(0.68 0.16 195);
+    --series-1: #3987e5;
+    --status-neutral: #7e8b8b;
+    --status-good: var(--accent);
+    --status-warning: #e1a447;
+    --status-critical: var(--destructive);
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #008300;
+    --series-7: #9085e9;
+    --series-8: #e66767;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  html {
+    @apply font-sans;
+    }
+}
