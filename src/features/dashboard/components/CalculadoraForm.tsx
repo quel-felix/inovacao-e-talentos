@@ -51,7 +51,7 @@ export function CalculadoraForm() {
   const [salBrutoMensal, setSalBrutoMensal] = useState("")
   const [pesquisadores, setPesquisadores] = useState("1")
   const [regime, setRegime] = useState("Lucro real")
-  const [aliquota, setAliquota] = useState("0")
+  const [aliquota, setAliquota] = useState("34")
   const [alocacaoExclusiva, setAlocacaoExclusiva] = useState(true)
   const [incremento, setIncremento] = useState(true)
   const [havePatente, setHavePatente] = useState(false)
@@ -214,7 +214,7 @@ export function CalculadoraForm() {
                   <FieldContent>
                     <FieldTitle>Registro de patente no ano</FieldTitle>
                     <FieldDescription>
-                      Concessão ou depósito de patente no período.
+                      Concessão ou depósito de patente no período (+20% na exclusão).
                     </FieldDescription>
                   </FieldContent>
                   <Switch checked={havePatente} onCheckedChange={setHavePatente} />
@@ -298,7 +298,7 @@ export function CalculadoraForm() {
           <Card>
             <CardHeader>
               <CardTitle>Resultado pesquisador Lei do Bem</CardTitle>
-              <CardDescription>Custo e incentivo estimados com os dados informados acima.</CardDescription>
+              <CardDescription>Custo líquido após a economia de IRPJ/CSLL com a Lei do Bem.</CardDescription>
             </CardHeader>
             <CardContent>
               <dl className="grid grid-cols-2 gap-4">
@@ -307,15 +307,25 @@ export function CalculadoraForm() {
                   <dd className="font-heading text-lg font-semibold">{formatCurrency(resultado.custoBruto)}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Fator Lei do Bem</dt>
-                  <dd className="font-heading text-lg font-semibold">{resultado.leidobem.toLocaleString("pt-BR")}</dd>
+                  <dt className="text-xs text-muted-foreground">Exclusão adicional Lei do Bem</dt>
+                  <dd className="font-heading text-lg font-semibold">{(resultado.leidobem * 100).toLocaleString("pt-BR")}%</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Economia com a Lei do Bem</dt>
+                  <dd className="font-heading text-lg font-semibold text-pierx-green">{formatCurrency(resultado.incentivo)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Economia sobre o custo bruto</dt>
+                  <dd className="font-heading text-lg font-semibold text-pierx-green">
+                    {resultado.percentualEconomia.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%
+                  </dd>
                 </div>
               </dl>
 
               <div className="mt-4 rounded-xl bg-pierx-green p-4 text-off-white">
-                <p className="text-xs font-medium text-off-white/80">Incentivo estimado</p>
+                <p className="text-xs font-medium text-off-white/80">Custo líquido (após a Lei do Bem)</p>
                 <p className="font-heading text-2xl font-extrabold">
-                  {formatCurrency(resultado.incentivo)}
+                  {formatCurrency(resultado.custoLiquido)}
                 </p>
               </div>
             </CardContent>

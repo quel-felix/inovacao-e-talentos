@@ -14,11 +14,11 @@ interface ComparativoLeiDoBemProps {
 }
 
 /**
- * Resultado pesquisador CLT - Resultado pesquisador Lei do Bem: quanto (em R$
- * e em %) a Lei do Bem economiza frente ao custo sem incentivo.
+ * Custo do pesquisador CLT × custo líquido do pesquisador Lei do Bem: quanto
+ * (em R$ e em %) a Lei do Bem economiza frente ao custo sem incentivo.
  */
 export function ComparativoLeiDoBem({ clt, leiDoBem }: ComparativoLeiDoBemProps) {
-  const valorEconomizado = clt.custoBruto - leiDoBem.incentivo
+  const valorEconomizado = clt.custoBruto - leiDoBem.custoLiquido
   const percentualEconomizado = clt.custoBruto > 0 ? (valorEconomizado / clt.custoBruto) * 100 : 0
 
   const barOption = useMemo<EChartsOption>(() => {
@@ -26,7 +26,7 @@ export function ComparativoLeiDoBem({ clt, leiDoBem }: ComparativoLeiDoBemProps)
     const axisLabel = { color: theme.mutedForeground, fontSize: 12 }
 
     return {
-      grid: { left: 8, right: 8, top: 16, bottom: 28, containLabel: true },
+      grid: { left: 8, right: 8, top: 16, bottom: 36, containLabel: true },
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
@@ -48,19 +48,36 @@ export function ComparativoLeiDoBem({ clt, leiDoBem }: ComparativoLeiDoBemProps)
         axisLabel,
         splitLine: { lineStyle: { color: theme.border, type: "dashed" } },
       },
+      legend: {
+        bottom: 0,
+        icon: "roundRect",
+        itemWidth: 12,
+        itemHeight: 12,
+        textStyle: { color: theme.mutedForeground, fontSize: 12 },
+        data: ["Custo líquido", "Economia Lei do Bem"],
+      },
       series: [
         {
-          name: "Custo anual",
+          name: "Custo líquido",
           type: "bar",
+          stack: "custo",
           barMaxWidth: 72,
           data: [
-            { value: clt.custoBruto, itemStyle: { color: theme.status.neutral, borderRadius: [4, 4, 0, 0] } },
-            { value: leiDoBem.incentivo, itemStyle: { color: theme.status.good, borderRadius: [4, 4, 0, 0] } },
+            { value: clt.custoBruto, itemStyle: { color: theme.status.neutral } },
+            { value: leiDoBem.custoLiquido, itemStyle: { color: theme.status.good } },
           ],
+        },
+        {
+          name: "Economia Lei do Bem",
+          type: "bar",
+          stack: "custo",
+          barMaxWidth: 72,
+          itemStyle: { color: theme.status.good, opacity: 0.3, borderRadius: [4, 4, 0, 0] },
+          data: [0, valorEconomizado],
         },
       ],
     }
-  }, [clt.custoBruto, leiDoBem.incentivo])
+  }, [clt.custoBruto, leiDoBem.custoLiquido, valorEconomizado])
 
   const gaugeOption = useMemo<EChartsOption>(() => {
     const theme = getChartTheme()
@@ -84,7 +101,7 @@ export function ComparativoLeiDoBem({ clt, leiDoBem }: ComparativoLeiDoBemProps)
           axisLabel: { show: false },
           detail: {
             offsetCenter: [0, "-6%"],
-            formatter: `${percentualEconomizado.toFixed(1)}%`,
+            formatter: `${percentualEconomizado.toFixed(2).replace(".", ",")}%`,
             color: theme.status.good,
             fontSize: 30,
             fontWeight: "bold",
@@ -99,7 +116,7 @@ export function ComparativoLeiDoBem({ clt, leiDoBem }: ComparativoLeiDoBemProps)
     <Card>
       <CardHeader>
         <CardTitle>Comparativo CLT × Lei do Bem</CardTitle>
-        <CardDescription>Resultado pesquisador CLT − Resultado pesquisador Lei do Bem</CardDescription>
+        <CardDescription>Custo pesquisador CLT − custo líquido pesquisador Lei do Bem</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-6 sm:grid-cols-2">
         <div>

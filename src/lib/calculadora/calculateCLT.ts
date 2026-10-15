@@ -21,7 +21,7 @@ export function calcularCLT(form: FormData): CalculadoraCLTResultado {
   // Caso o projeto utilize programa de cofinanciamento salarial nos
   // primeiros 12 meses.
   if (form.cofinanciamento) {
-    const abatimentoEconomico = massaAnual * form.subvencao * (form.periodo / 12)
+    const abatimentoEconomico = massaAnual * (form.subvencao / 100) * (form.periodo / 12)
     massaAnual = massaAnual - abatimentoEconomico
   }
 

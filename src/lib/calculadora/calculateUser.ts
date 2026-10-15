@@ -11,7 +11,12 @@ export interface CalculadoraResultado {
   encargos: number
   custoBruto: number
   leidobem: number
+  /** Economia fiscal (IRPJ/CSLL) obtida com a Lei do Bem. */
   incentivo: number
+  /** Custo bruto − economia: o que o pesquisador custa de fato. */
+  custoLiquido: number
+  /** Economia em % do custo bruto. */
+  percentualEconomia: number
 }
 
 const MESES_FERIAS = 13
@@ -22,7 +27,7 @@ export function calcularIncentivo(form: FormData): CalculadoraResultado {
   // Caso o projeto utilize programa de cofinanciamento salarial nos
   // primeiros 12 meses.
   if (form.cofinanciamento) {
-    const abatimentoEconomico = massaAnual * form.subvencao * (form.periodo / 12)
+    const abatimentoEconomico = massaAnual * (form.subvencao / 100) * (form.periodo / 12)
     massaAnual = massaAnual - abatimentoEconomico
   }
 
@@ -39,7 +44,18 @@ export function calcularIncentivo(form: FormData): CalculadoraResultado {
     leidobem = 0.6
   }
 
-  const incentivo = custoBruto * leidobem // 3
+  // Patente concedida ou depositada no período: +20% de exclusão adicional.
+  if (form.havePatente) {
+    leidobem += 0.2
+  }
 
-  return { massaAnual, encargos, custoBruto, leidobem, incentivo }
+  // O dispêndio já é dedutível como despesa operacional (100%) e a Lei do Bem
+  // soma a exclusão adicional (leidobem) — tudo sobre a alíquota de IRPJ/CSLL.
+  // Só empresas no Lucro real podem usar o benefício.
+  const aliquota = form.regime === "Lucro real" ? form.aliquota / 100 : 0
+  const incentivo = custoBruto * (1 + leidobem) * aliquota // 3
+  const custoLiquido = custoBruto - incentivo
+  const percentualEconomia = custoBruto > 0 ? (incentivo / custoBruto) * 100 : 0
+
+  return { massaAnual, encargos, custoBruto, leidobem, incentivo, custoLiquido, percentualEconomia }
 }
