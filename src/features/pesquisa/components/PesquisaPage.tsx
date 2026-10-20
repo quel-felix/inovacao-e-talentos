@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react"
-import { SearchIcon } from "lucide-react"
+import { ChevronLeftIcon, ChevronRightIcon, SearchIcon, XIcon } from "lucide-react"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
@@ -13,21 +14,17 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { PesquisadorSheet } from "@/features/pesquisa/components/PesquisadorSheet"
-import {
-  FAIXA_CONCEITO_PADRAO,
-  FAIXAS_CONCEITO,
-  filtrarPesquisadores,
-  rotuloConceito,
-  type FaixaConceito,
-  type TipoPesquisa,
-} from "@/lib/pesquisa/filtrarPesquisadores"
+import { filtrarPesquisadores, rotuloConceito, type TipoPesquisa } from "@/lib/pesquisa/filtrarPesquisadores"
 import {
   NIVEIS_FORMACAO,
   PESQUISADORES,
   REGIOES,
+  UFS,
+  UFS_POR_REGIAO,
   type NivelFormacao,
   type Pesquisador,
   type Regiao,
+  type UF,
 } from "@/lib/pesquisa/pesquisadores"
 
 const TIPO_PESQUISA_OPTIONS: { value: TipoPesquisa; label: string; placeholder: string }[] = [
@@ -46,9 +43,6 @@ const comTodas = (valores: string[]) => [
 
 const REGIAO_OPTIONS = comTodas(REGIOES)
 const FORMACAO_OPTIONS = comTodas(NIVEIS_FORMACAO)
-const INSTITUICAO_OPTIONS = comTodas(
-  [...new Set(PESQUISADORES.map((p) => p.instituicao))].sort((a, b) => a.localeCompare(b, "pt-BR")),
-)
 
 interface FiltroSelectProps {
   id: string
@@ -80,15 +74,94 @@ function FiltroSelect({ id, label, options, value, onChange }: FiltroSelectProps
   )
 }
 
-const COLUNAS = ["Nome", "Região", "Formação", "Instituição", "Curso", "Conceito do curso"]
+/** Quantos pesquisadores aparecem em cada página da tabela. */
+const POR_PAGINA = 20
+
+const TIPO_PADRAO: TipoPesquisa = "artigos"
+
+/**
+ * Números de página mostrados na paginação: todos quando são poucos; senão a
+ * primeira, a última e as vizinhas da atual, com "…" nos saltos.
+ */
+function paginasVisiveis(atual: number, total: number): (number | "…")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  const inicio = Math.max(2, atual - 1)
+  const fim = Math.min(total - 1, atual + 1)
+  return [
+    1,
+    ...(inicio > 2 ? ["…" as const] : []),
+    ...Array.from({ length: fim - inicio + 1 }, (_, i) => inicio + i),
+    ...(fim < total - 1 ? ["…" as const] : []),
+    total,
+  ]
+}
+
+interface PaginacaoProps {
+  pagina: number
+  totalPaginas: number
+  onChange: (pagina: number) => void
+}
+
+function Paginacao({ pagina, totalPaginas, onChange }: PaginacaoProps) {
+  return (
+    <nav aria-label="Paginação dos resultados" className="flex items-center gap-1">
+      <Button
+        variant="outline"
+        size="icon"
+        aria-label="Página anterior"
+        disabled={pagina === 1}
+        onClick={() => onChange(pagina - 1)}
+      >
+        <ChevronLeftIcon />
+      </Button>
+      {paginasVisiveis(pagina, totalPaginas).map((item, index) =>
+        item === "…" ? (
+          <span key={`salto-${index}`} className="px-1 text-muted-foreground">
+            …
+          </span>
+        ) : (
+          <Button
+            key={item}
+            variant={item === pagina ? "default" : "ghost"}
+            size="icon"
+            aria-current={item === pagina ? "page" : undefined}
+            onClick={() => onChange(item)}
+          >
+            {item}
+          </Button>
+        ),
+      )}
+      <Button
+        variant="outline"
+        size="icon"
+        aria-label="Próxima página"
+        disabled={pagina === totalPaginas}
+        onClick={() => onChange(pagina + 1)}
+      >
+        <ChevronRightIcon />
+      </Button>
+    </nav>
+  )
+}
+
+const COLUNAS = ["Nome", "Região", "UF", "Formação", "Instituição", "Curso", "Conceito do curso"]
 
 export function PesquisaPage() {
-  const [tipo, setTipo] = useState<TipoPesquisa>("artigos")
+  const [tipo, setTipo] = useState<TipoPesquisa>(TIPO_PADRAO)
   const [termo, setTermo] = useState("")
   const [regiao, setRegiao] = useState(TODAS)
+  const [uf, setUf] = useState(TODAS)
   const [formacao, setFormacao] = useState(TODAS)
-  const [instituicao, setInstituicao] = useState(TODAS)
-  const [conceito, setConceito] = useState<FaixaConceito>(FAIXA_CONCEITO_PADRAO)
+
+  // O select de UF só lista os estados da região escolhida.
+  const ufOptions = useMemo(() => comTodas(regiao === TODAS ? UFS : UFS_POR_REGIAO[regiao as Regiao]), [regiao])
+
+  const alterarRegiao = (proxima: string) => {
+    setRegiao(proxima)
+    if (proxima !== TODAS && uf !== TODAS && !UFS_POR_REGIAO[proxima as Regiao].includes(uf as UF)) {
+      setUf(TODAS)
+    }
+  }
 
   // `selecionado` continua preenchido enquanto o painel fecha, para o conteúdo
   // não sumir durante a animação de saída.
@@ -101,12 +174,35 @@ export function PesquisaPage() {
         tipo,
         termo,
         regiao: regiao === TODAS ? null : (regiao as Regiao),
+        uf: uf === TODAS ? null : (uf as UF),
         formacao: formacao === TODAS ? null : (formacao as NivelFormacao),
-        instituicao: instituicao === TODAS ? null : instituicao,
-        conceito,
       }),
-    [tipo, termo, regiao, formacao, instituicao, conceito],
+    [tipo, termo, regiao, uf, formacao],
   )
+
+  const filtrosAtivos = termo !== "" || regiao !== TODAS || uf !== TODAS || formacao !== TODAS
+
+  const limparFiltros = () => {
+    setTipo(TIPO_PADRAO)
+    setTermo("")
+    setRegiao(TODAS)
+    setUf(TODAS)
+    setFormacao(TODAS)
+  }
+
+  // Volta para a página 1 sempre que algum filtro muda.
+  const [pagina, setPagina] = useState(1)
+  const chaveFiltros = [tipo, termo, regiao, uf, formacao].join("|")
+  const [chavePaginada, setChavePaginada] = useState(chaveFiltros)
+  if (chavePaginada !== chaveFiltros) {
+    setChavePaginada(chaveFiltros)
+    setPagina(1)
+  }
+
+  const totalPaginas = Math.max(1, Math.ceil(resultados.length / POR_PAGINA))
+  const paginaAtual = Math.min(pagina, totalPaginas)
+  const primeiro = (paginaAtual - 1) * POR_PAGINA
+  const resultadosDaPagina = resultados.slice(primeiro, primeiro + POR_PAGINA)
 
   const abrirPesquisador = (pesquisador: Pesquisador) => {
     setSelecionado(pesquisador)
@@ -121,6 +217,12 @@ export function PesquisaPage() {
         <CardHeader>
           <CardTitle>Filtros de busca</CardTitle>
           <CardDescription>Escolha o tipo de busca, digite o termo e refine com os filtros.</CardDescription>
+          <CardAction>
+            <Button variant="outline" onClick={limparFiltros} disabled={!filtrosAtivos}>
+              <XIcon />
+              Limpar filtros
+            </Button>
+          </CardAction>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <FieldGroup className="grid grid-cols-1 gap-4 sm:grid-cols-[12rem_1fr]">
@@ -147,28 +249,15 @@ export function PesquisaPage() {
             </Field>
           </FieldGroup>
 
-          <FieldGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <FiltroSelect id="regiao" label="Região" options={REGIAO_OPTIONS} value={regiao} onChange={setRegiao} />
+          <FieldGroup className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <FiltroSelect id="regiao" label="Região" options={REGIAO_OPTIONS} value={regiao} onChange={alterarRegiao} />
+            <FiltroSelect id="uf" label="UF" options={ufOptions} value={uf} onChange={setUf} />
             <FiltroSelect
               id="formacao"
               label="Formação"
               options={FORMACAO_OPTIONS}
               value={formacao}
               onChange={setFormacao}
-            />
-            <FiltroSelect
-              id="instituicao"
-              label="Instituição"
-              options={INSTITUICAO_OPTIONS}
-              value={instituicao}
-              onChange={setInstituicao}
-            />
-            <FiltroSelect
-              id="conceito"
-              label="Conceito do curso (a partir de)"
-              options={FAIXAS_CONCEITO}
-              value={conceito}
-              onChange={(value) => setConceito(value as FaixaConceito)}
             />
           </FieldGroup>
         </CardContent>
@@ -195,7 +284,7 @@ export function PesquisaPage() {
                 </tr>
               </thead>
               <tbody>
-                {resultados.map((p) => (
+                {resultadosDaPagina.map((p) => (
                   <tr
                     key={p.id}
                     onClick={() => abrirPesquisador(p)}
@@ -214,6 +303,7 @@ export function PesquisaPage() {
                       </button>
                     </td>
                     <td className="px-4 py-3">{p.regiao}</td>
+                    <td className="px-4 py-3">{p.uf}</td>
                     <td className="px-4 py-3">{p.formacao}</td>
                     <td className="px-4 py-3">{p.instituicao}</td>
                     <td className="px-4 py-3">{p.curso}</td>
@@ -230,6 +320,17 @@ export function PesquisaPage() {
               </tbody>
             </table>
           </div>
+
+          {resultados.length > 0 && (
+            <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+              <p className="text-sm text-muted-foreground">
+                Mostrando {primeiro + 1}–{primeiro + resultadosDaPagina.length} de {resultados.length}
+              </p>
+              {totalPaginas > 1 && (
+                <Paginacao pagina={paginaAtual} totalPaginas={totalPaginas} onChange={setPagina} />
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -1,7 +1,7 @@
 import { ExternalLinkIcon } from "lucide-react"
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import type { Pesquisador } from "@/lib/pesquisa/pesquisadores"
+import type { Pesquisador, SituacaoAcademica } from "@/lib/pesquisa/pesquisadores"
 
 interface PesquisadorSheetProps {
   pesquisador: Pesquisador | null
@@ -16,6 +16,22 @@ function Secao({ titulo, children }: { titulo: string; children: React.ReactNode
       {children}
     </section>
   )
+}
+
+function Info({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <dt className="text-xs font-extrabold tracking-[0.15em] text-piera-blue uppercase">{rotulo}</dt>
+      <dd>{children}</dd>
+    </div>
+  )
+}
+
+/** A maior formação segue a situação acadêmica; as anteriores já foram concluídas. */
+function rotuloAno(ano: number, situacao: SituacaoAcademica) {
+  if (situacao === "Matriculado") return `em andamento (previsão ${ano})`
+  if (situacao === "Desligado") return `desligado em ${ano}`
+  return ano
 }
 
 /** Tela de detalhes aberta ao clicar em um pesquisador na tabela da Pesquisa. */
@@ -33,19 +49,24 @@ export function PesquisadorSheet({ pesquisador, open, onOpenChange }: Pesquisado
             </SheetHeader>
 
             <div className="flex flex-col gap-6 px-4 pb-6">
-              <Secao titulo="Região">
-                <p>{pesquisador.regiao}</p>
-              </Secao>
+              <dl className="grid grid-cols-2 gap-4">
+                <Info rotulo="Município">
+                  {pesquisador.municipio} – {pesquisador.uf}
+                </Info>
+                <Info rotulo="Região">{pesquisador.regiao}</Info>
+                <Info rotulo="Nacionalidade">{pesquisador.nacionalidade}</Info>
+                <Info rotulo="Situação acadêmica">{pesquisador.situacaoAcademica}</Info>
+              </dl>
 
               <Secao titulo="Formações">
                 <ul className="flex flex-col gap-2">
-                  {[...pesquisador.formacoes].reverse().map((f) => (
+                  {[...pesquisador.formacoes].reverse().map((f, index) => (
                     <li key={`${f.nivel}-${f.ano}`} className="rounded-lg border border-border p-3">
                       <p className="font-medium">
                         {f.nivel} em {f.curso}
                       </p>
                       <p className="text-muted-foreground">
-                        {f.instituicao} · {f.ano}
+                        {f.instituicao} · {rotuloAno(f.ano, index === 0 ? pesquisador.situacaoAcademica : "Titulado")}
                       </p>
                     </li>
                   ))}
