@@ -8,6 +8,11 @@ dist
 dist-ssr
 *.local
 
+# Variáveis de ambiente (chave da API); só o .env.example vai para o git
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
