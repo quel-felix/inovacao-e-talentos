@@ -14,8 +14,9 @@ interface ComparativoLeiDoBemProps {
 }
 
 /**
- * Custo do pesquisador CLT × custo líquido do pesquisador Lei do Bem: quanto
- * (em R$ e em %) a Lei do Bem economiza frente ao custo sem incentivo.
+ * Três perfis sobre o total de pesquisadores: CLT (salário + 13º + férias +
+ * encargos), pesquisador bolsista sem incentivo e pesquisador com a Lei do
+ * Bem — quanto (em R$ e em %) a Lei do Bem economiza frente ao CLT.
  */
 export function ComparativoLeiDoBem({ clt, leiDoBem }: ComparativoLeiDoBemProps) {
   const valorEconomizado = clt.custoBruto - leiDoBem.custoLiquido
@@ -26,20 +27,30 @@ export function ComparativoLeiDoBem({ clt, leiDoBem }: ComparativoLeiDoBemProps)
     const axisLabel = { color: theme.mutedForeground, fontSize: 12 }
 
     return {
-      grid: { left: 8, right: 8, top: 16, bottom: 36, containLabel: true },
+      grid: { left: 8, right: 8, top: 16, bottom: 8, containLabel: true },
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
         borderWidth: 0,
         extraCssText: "border-radius:12px;box-shadow:0 10px 15px -3px rgb(0 0 0 / 0.1)",
-        valueFormatter: (value) => formatCurrency(Number(value)),
+        // Só as séries com valor na barra: CLT e Pesquisador mostram apenas o custo líquido.
+        formatter: (params) => {
+          const itens = (Array.isArray(params) ? params : [params]).filter(
+            (item) => typeof item.value === "number",
+          )
+          const linhas = itens.map(
+            (item) => `${item.marker} ${item.seriesName}: <b>${formatCurrency(item.value as number)}</b>`,
+          )
+          return [String(itens[0]?.name ?? "").replace("\n", " "), ...linhas].join("<br/>")
+        },
       },
       xAxis: {
         type: "category",
-        data: ["Pesquisador CLT", "Pesquisador Lei do Bem"],
+        data: ["CLT", "Pesquisador", "Pesquisador\nLei do Bem"],
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel,
+        // interval 0: mostra todos os rótulos, sem o ECharts ocultar algum por falta de espaço.
+        axisLabel: { ...axisLabel, interval: 0 },
       },
       yAxis: {
         type: "value",
@@ -47,14 +58,6 @@ export function ComparativoLeiDoBem({ clt, leiDoBem }: ComparativoLeiDoBemProps)
         axisTick: { show: false },
         axisLabel,
         splitLine: { lineStyle: { color: theme.border, type: "dashed" } },
-      },
-      legend: {
-        bottom: 0,
-        icon: "roundRect",
-        itemWidth: 12,
-        itemHeight: 12,
-        textStyle: { color: theme.mutedForeground, fontSize: 12 },
-        data: ["Custo líquido", "Economia Lei do Bem"],
       },
       series: [
         {
@@ -64,6 +67,7 @@ export function ComparativoLeiDoBem({ clt, leiDoBem }: ComparativoLeiDoBemProps)
           barMaxWidth: 72,
           data: [
             { value: clt.custoBruto, itemStyle: { color: theme.status.neutral } },
+            { value: leiDoBem.investimentoTotal, itemStyle: { color: theme.status.warning } },
             { value: leiDoBem.custoLiquido, itemStyle: { color: theme.status.good } },
           ],
         },
@@ -73,11 +77,11 @@ export function ComparativoLeiDoBem({ clt, leiDoBem }: ComparativoLeiDoBemProps)
           stack: "custo",
           barMaxWidth: 72,
           itemStyle: { color: theme.status.good, opacity: 0.3, borderRadius: [4, 4, 0, 0] },
-          data: [0, valorEconomizado],
+          data: ["-", "-", leiDoBem.incentivo],
         },
       ],
     }
-  }, [clt.custoBruto, leiDoBem.custoLiquido, valorEconomizado])
+  }, [clt.custoBruto, leiDoBem.investimentoTotal, leiDoBem.custoLiquido, leiDoBem.incentivo])
 
   const gaugeOption = useMemo<EChartsOption>(() => {
     const theme = getChartTheme()
@@ -115,12 +119,12 @@ export function ComparativoLeiDoBem({ clt, leiDoBem }: ComparativoLeiDoBemProps)
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Comparativo CLT × Lei do Bem</CardTitle>
-        <CardDescription>Custo pesquisador CLT − custo líquido pesquisador Lei do Bem</CardDescription>
+        <CardTitle>Comparativo CLT × Pesquisador × Lei do Bem</CardTitle>
+        <CardDescription>Custo anual de todos os pesquisadores adicionados, nos três perfis</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-6 sm:grid-cols-2">
         <div>
-          <p className="text-xs text-muted-foreground">Valor total economizado</p>
+          <p className="text-xs text-muted-foreground">Valor total economizado frente ao CLT</p>
           <p className="font-heading text-2xl font-extrabold text-pierx-green">
             {formatCurrency(Math.max(0, valorEconomizado))}
           </p>
@@ -129,7 +133,7 @@ export function ComparativoLeiDoBem({ clt, leiDoBem }: ComparativoLeiDoBemProps)
 
         <div className="flex flex-col items-center justify-center">
           <EChart option={gaugeOption} className="h-56 w-full" />
-          <p className="text-center text-sm text-muted-foreground">economia usando a Lei do Bem</p>
+          <p className="text-center text-sm text-muted-foreground">economia usando a Lei do Bem frente ao CLT</p>
         </div>
       </CardContent>
     </Card>

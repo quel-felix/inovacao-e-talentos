@@ -1,38 +1,48 @@
 /**
- * Porta de backend/calculateUser.py: mesmo cálculo de calculadora.py (raiz da
- * pasta sandbox), só que recebendo os dados já extraídos por getDataForms.ts
- * em vez de variáveis fixas no topo do arquivo — e rodando direto no front.
+ * Porta de backend/calculateUser.py, agora no modelo de bolsa da planilha
+ * "Projeção Investimento x Incentivo Fiscal.xlsx": bolsa anual + taxa adm 5%
+ * + análise de projeto + gestão operacional = investimento total; o benefício
+ * da Lei do Bem é a exclusão adicional × 34% sobre a bolsa anual (coluna J).
  */
 
-import type { FormData } from "@/lib/calculadora/getDataForms"
+import {
+  ALIQUOTA_IRPJ_CSLL,
+  ANALISE_PROJETO,
+  GESTAO_OPERACIONAL,
+  MESES_BOLSA,
+  TAXA_ADM,
+} from "@/lib/calculadora/constantes"
+import {
+  aplicarCofinanciamento,
+  bolsaMensalTotal,
+  totalPesquisadores,
+  type FormData,
+} from "@/lib/calculadora/getDataForms"
 
 export interface CalculadoraResultado {
-  massaAnual: number
-  encargos: number
-  custoBruto: number
+  bolsaAnual: number
+  taxaAdm: number
+  analiseProjeto: number
+  gestaoOperacional: number
+  /** Custo do pesquisador bolsista, sem o incentivo. */
+  investimentoTotal: number
   leidobem: number
   /** Economia fiscal (IRPJ/CSLL) obtida com a Lei do Bem. */
   incentivo: number
-  /** Custo bruto − economia: o que o pesquisador custa de fato. */
+  /** Investimento total − economia: o que o pesquisador custa de fato. */
   custoLiquido: number
-  /** Economia em % do custo bruto. */
+  /** Economia em % do investimento total. */
   percentualEconomia: number
 }
 
-const MESES_FERIAS = 13
-
 export function calcularIncentivo(form: FormData): CalculadoraResultado {
-  let massaAnual = form.salBrutoMensal * MESES_FERIAS * form.pesquisadores // valor total
+  const quantidade = totalPesquisadores(form)
+  const bolsaAnual = aplicarCofinanciamento(form, bolsaMensalTotal(form) * MESES_BOLSA)
 
-  // Caso o projeto utilize programa de cofinanciamento salarial nos
-  // primeiros 12 meses.
-  if (form.cofinanciamento) {
-    const abatimentoEconomico = massaAnual * (form.subvencao / 100) * (form.periodo / 12)
-    massaAnual = massaAnual - abatimentoEconomico
-  }
-
-  const encargos = massaAnual * 0.7 // 70%
-  const custoBruto = massaAnual + encargos // 2a dedução padrão
+  const taxaAdm = bolsaAnual * TAXA_ADM
+  const analiseProjeto = ANALISE_PROJETO * quantidade
+  const gestaoOperacional = GESTAO_OPERACIONAL * quantidade
+  const investimentoTotal = bolsaAnual + taxaAdm + analiseProjeto + gestaoOperacional
 
   // Lei do Bem
   let leidobem: number
@@ -49,13 +59,21 @@ export function calcularIncentivo(form: FormData): CalculadoraResultado {
     leidobem += 0.2
   }
 
-  // O dispêndio já é dedutível como despesa operacional (100%) e a Lei do Bem
-  // soma a exclusão adicional (leidobem) — tudo sobre a alíquota de IRPJ/CSLL.
-  // Só empresas no Lucro real podem usar o benefício.
-  const aliquota = form.regime === "Lucro real" ? form.aliquota / 100 : 0
-  const incentivo = custoBruto * (1 + leidobem) * aliquota // 3
-  const custoLiquido = custoBruto - incentivo
-  const percentualEconomia = custoBruto > 0 ? (incentivo / custoBruto) * 100 : 0
+  // Exclusão adicional sobre a bolsa anual, à alíquota de IRPJ/CSLL (Lucro
+  // real). Ex.: 60% × 34% = 20,4% da bolsa anual, como na planilha.
+  const incentivo = bolsaAnual * leidobem * ALIQUOTA_IRPJ_CSLL
+  const custoLiquido = investimentoTotal - incentivo
+  const percentualEconomia = investimentoTotal > 0 ? (incentivo / investimentoTotal) * 100 : 0
 
-  return { massaAnual, encargos, custoBruto, leidobem, incentivo, custoLiquido, percentualEconomia }
+  return {
+    bolsaAnual,
+    taxaAdm,
+    analiseProjeto,
+    gestaoOperacional,
+    investimentoTotal,
+    leidobem,
+    incentivo,
+    custoLiquido,
+    percentualEconomia,
+  }
 }

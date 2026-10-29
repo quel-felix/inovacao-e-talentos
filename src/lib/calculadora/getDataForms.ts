@@ -1,16 +1,18 @@
 /**
  * Porta de backend/getDataForms.py: recebe os dados brutos do formulário
- * (CalculadoraForm, mesmos campos de formulario.html) e devolve um `FormData`
- * com cada campo validado e nomeado exatamente como em calculadora.py — só
- * que agora rodando no próprio front, sem precisar de um back-end.
+ * (CalculadoraForm) e devolve um `FormData` com cada campo validado — rodando
+ * no próprio front, sem precisar de um back-end. Regime (Lucro real) e
+ * alíquota (34%) são fixos, ver constantes.ts.
  */
 
+export interface PesquisadorInput {
+  categoria: string
+  bolsaMensal: number
+  quantidade: number
+}
+
 export interface FormData {
-  titulo: string
-  salBrutoMensal: number
-  pesquisadores: number
-  regime: string
-  aliquota: number
+  pesquisadores: PesquisadorInput[]
   alocacaoExclusiva: boolean
   incremento: boolean
   havePatente: boolean
@@ -35,21 +37,43 @@ function assertRange(field: string, value: number, min: number, max: number) {
   }
 }
 
-/** Valida o payload do formulário e devolve os campos já nomeados e tipados
- * como em calculadora.py, prontos para calculateUser.ts. */
+/** Valida o payload do formulário e devolve os campos já tipados, prontos
+ * para calculateUser.ts e calculateCLT.ts. */
 export function getDataFromForm(payload: FormData): FormData {
-  if (!payload.titulo) {
-    throw new FormValidationError('"titulo" é obrigatório.')
-  }
-  if (!payload.regime) {
-    throw new FormValidationError('"regime" é obrigatório.')
+  if (payload.pesquisadores.length === 0) {
+    throw new FormValidationError("Adicione ao menos um pesquisador.")
   }
 
-  assertRange("salBrutoMensal", payload.salBrutoMensal, 0, Number.POSITIVE_INFINITY)
-  assertRange("pesquisadores", payload.pesquisadores, 1, Number.POSITIVE_INFINITY)
-  assertRange("aliquota", payload.aliquota, 0, 100)
+  for (const pesquisador of payload.pesquisadores) {
+    if (!pesquisador.categoria) {
+      throw new FormValidationError('"categoria" é obrigatória.')
+    }
+    assertRange("bolsa mensal", pesquisador.bolsaMensal, 0, Number.POSITIVE_INFINITY)
+    assertRange("quantidade", pesquisador.quantidade, 1, Number.POSITIVE_INFINITY)
+  }
+
   assertRange("subvencao", payload.subvencao, 0, 50)
   assertRange("periodo", payload.periodo, 0, 12)
 
   return { ...payload }
+}
+
+/** Total de pesquisadores somando as quantidades de cada perfil. */
+export function totalPesquisadores(form: FormData): number {
+  return form.pesquisadores.reduce((total, pesquisador) => total + pesquisador.quantidade, 0)
+}
+
+/** Soma de bolsa mensal × quantidade de todos os perfis. */
+export function bolsaMensalTotal(form: FormData): number {
+  return form.pesquisadores.reduce(
+    (total, pesquisador) => total + pesquisador.bolsaMensal * pesquisador.quantidade,
+    0,
+  )
+}
+
+/** Abatimento do cofinanciamento salarial nos primeiros 12 meses. */
+export function aplicarCofinanciamento(form: FormData, valorAnual: number): number {
+  if (!form.cofinanciamento) return valorAnual
+  const abatimentoEconomico = valorAnual * (form.subvencao / 100) * (form.periodo / 12)
+  return valorAnual - abatimentoEconomico
 }
