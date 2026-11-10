@@ -25,10 +25,11 @@ function mensagemDeErro(status: number): string {
     case 400:
     case 422:
       return "A API recusou a busca. Revise o termo e tente de novo."
-    // A API devolve 502 para qualquer falha do OpenAlex; na prática, quase
-    // sempre é o limite de uso da busca semântica (429 lá), que libera em segundos.
+    // A API devolve 502 para qualquer falha do OpenAlex ou da lambda de busca de
+    // pesquisadores; na prática, quase sempre é o limite de uso da busca semântica
+    // (429 no OpenAlex), que libera em segundos.
     case 502:
-      return "O OpenAlex está limitando as buscas no momento. Aguarde alguns segundos e tente de novo."
+      return "O serviço de busca falhou ou está limitando as buscas no momento. Aguarde alguns segundos e tente de novo."
     default:
       return "Não foi possível falar com a API de pesquisadores."
   }

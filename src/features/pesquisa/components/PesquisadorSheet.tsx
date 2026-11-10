@@ -1,6 +1,7 @@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Info, LinkExterno, Secao } from "@/features/pesquisa/components/Detalhes"
 import { ouSemInformacao, SemInformacao } from "@/features/pesquisa/components/SemInformacao"
+import { formatNumber } from "@/lib/number"
 import type { Pesquisador, SituacaoAcademica } from "@/lib/pesquisa/pesquisadores"
 
 interface PesquisadorSheetProps {
@@ -40,6 +41,15 @@ export function PesquisadorSheet({ pesquisador, open, onOpenChange }: Pesquisado
                 <Info rotulo="Região">{ouSemInformacao(pesquisador.regiao)}</Info>
                 <Info rotulo="Nacionalidade">{ouSemInformacao(pesquisador.nacionalidade)}</Info>
                 <Info rotulo="Situação acadêmica">{ouSemInformacao(pesquisador.situacaoAcademica)}</Info>
+                {/* Só a busca por tema calcula a nota e soma as citações. */}
+                {pesquisador.notaCitacoes !== null && (
+                  <Info rotulo="Nota de citações">
+                    {pesquisador.notaCitacoes.toLocaleString("pt-BR", { minimumFractionDigits: 1 })} de 100
+                  </Info>
+                )}
+                {pesquisador.totalCitacoes !== null && (
+                  <Info rotulo="Citações">{formatNumber(pesquisador.totalCitacoes)}</Info>
+                )}
               </dl>
 
               <Secao titulo="Formações">
@@ -66,8 +76,8 @@ export function PesquisadorSheet({ pesquisador, open, onOpenChange }: Pesquisado
                   <SemInformacao />
                 ) : (
                   <ul className="flex list-disc flex-col gap-1.5 pl-5">
-                    {pesquisador.artigos.map((artigo) => (
-                      <li key={artigo}>{artigo}</li>
+                    {pesquisador.artigos.map((artigo, index) => (
+                      <li key={`${artigo}-${index}`}>{artigo}</li>
                     ))}
                   </ul>
                 )}

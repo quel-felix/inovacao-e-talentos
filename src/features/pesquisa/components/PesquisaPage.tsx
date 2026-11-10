@@ -14,15 +14,15 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ArtigoSheet } from "@/features/pesquisa/components/ArtigoSheet"
 import { PesquisadorSheet } from "@/features/pesquisa/components/PesquisadorSheet"
 import { ouSemInformacao } from "@/features/pesquisa/components/SemInformacao"
 import { useConsulta, type EstadoConsulta } from "@/lib/api/useConsulta"
 import { formatNumber } from "@/lib/number"
-import { buscarArtigos, MAX_CARACTERES_BUSCA_ARTIGOS, type Artigo } from "@/lib/pesquisa/artigos"
 import {
   buscarPesquisadoresPorNome,
+  buscarPesquisadoresPorTema,
   MAX_CARACTERES_NOME,
+  MAX_CARACTERES_TEMA,
   MAX_RESULTADOS_PAGINADOS,
   NIVEIS_FORMACAO,
   REGIOES,
@@ -38,8 +38,8 @@ const TIPO_PESQUISA_OPTIONS: { value: TipoPesquisa; label: string; placeholder: 
   {
     value: "artigos",
     label: "Artigos",
-    placeholder: "Buscar pelo tema dos artigos",
-    maxLength: MAX_CARACTERES_BUSCA_ARTIGOS,
+    placeholder: "Descreva o tema dos artigos para achar quem pesquisa sobre ele",
+    maxLength: MAX_CARACTERES_TEMA,
   },
   { value: "instituicoes", label: "Instituições", placeholder: "Buscar por instituição", maxLength: 200 },
 ]
@@ -166,8 +166,11 @@ function Paginacao({ pagina, totalPaginas, onChange }: PaginacaoProps) {
 
 const COLUNAS_PESQUISADORES = ["Nome", "Região", "UF", "Formação", "Instituição", "Curso", "Conceito do curso"]
 
-/** A busca por artigos lista os próprios artigos, com o que a API devolve deles. */
-const COLUNAS_ARTIGOS = ["Título", "Autores", "Ano", "Fonte", "Citações"]
+/** A busca por tema traz a nota e as citações de cada um, e ainda não traz região, formação etc. */
+const COLUNAS_TEMA = ["Nome", "Nota de citações", "Citações", "Artigos no tema"]
+
+/** Nota de 0 a 100 com uma casa decimal, como vem da API. */
+const notaFormatter = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 
 function LinhaMensagem({ colunas, children }: { colunas: number; children: React.ReactNode }) {
   return (
@@ -206,15 +209,6 @@ function LinhaResultado({ titulo, onAbrir, children }: LinhaResultadoProps) {
   )
 }
 
-/** Até três autores; o resto vira "et al.". */
-function resumirAutores(autores: string[]): string | null {
-  if (autores.length === 0) return null
-  if (autores.length <= 3) return autores.join(", ")
-  return `${autores.slice(0, 3).join(", ")} et al.`
-}
-
-type Selecionado = { tipo: "pesquisador"; pesquisador: Pesquisador } | { tipo: "artigo"; artigo: Artigo }
-
 export function PesquisaPage() {
   const [tipo, setTipo] = useState<TipoPesquisa>(TIPO_PADRAO)
   const [termo, setTermo] = useState("")
@@ -222,7 +216,7 @@ export function PesquisaPage() {
   const [tentativa, setTentativa] = useState(0)
 
   // A API só é chamada ao enviar o formulário (botão Pesquisar ou Enter), nunca
-  // a cada tecla: a busca de artigos tem cota de uso no OpenAlex.
+  // a cada tecla: a busca por tema leva minutos e tem cota de uso no OpenAlex.
   const [busca, setBusca] = useState<Busca | null>(null)
   const tipoBuscado = busca?.tipo ?? tipo
   const termoBuscado = busca?.termo ?? ""
@@ -239,14 +233,14 @@ export function PesquisaPage() {
 
   const alterarTipo = (proximo: TipoPesquisa) => {
     setTipo(proximo)
-    // Nome aceita menos caracteres que artigos; o excedente daria 422 na API.
+    // Nome aceita menos caracteres que tema; o excedente daria 422 na API.
     const limite = TIPO_PESQUISA_OPTIONS.find((option) => option.value === proximo)!.maxLength
     setTermo((atual) => atual.slice(0, limite))
   }
 
   // `selecionado` continua preenchido enquanto o painel fecha, para o conteúdo
   // não sumir durante a animação de saída.
-  const [selecionado, setSelecionado] = useState<Selecionado | null>(null)
+  const [selecionado, setSelecionado] = useState<Pesquisador | null>(null)
   const [painelAberto, setPainelAberto] = useState(false)
 
   // Volta para a página 1 sempre que a busca muda.
@@ -258,16 +252,16 @@ export function PesquisaPage() {
     setPagina(1)
   }
 
-  // Por nome, a API pagina; os artigos vêm todos de uma vez (os mais
-  // relevantes) e paginam aqui, então trocar de página não refaz a busca.
+  // Por nome, a API pagina; por tema, os pesquisadores vêm todos de uma vez (já
+  // ordenados pela nota) e paginam aqui, então trocar de página não refaz a busca.
   const porNome = useConsulta(
     busca?.tipo === "nome" ? `${chaveBusca}|${pagina}|${tentativa}` : null,
     (signal) => buscarPesquisadoresPorNome({ nome: termoBuscado, pagina, porPagina: POR_PAGINA }, signal),
   )
-  const porArtigos = useConsulta(busca?.tipo === "artigos" ? `${chaveBusca}|${tentativa}` : null, (signal) =>
-    buscarArtigos(termoBuscado, signal),
+  const porTema = useConsulta(busca?.tipo === "artigos" ? `${chaveBusca}|${tentativa}` : null, (signal) =>
+    buscarPesquisadoresPorTema(termoBuscado, signal),
   )
-  const estado: EstadoConsulta<unknown> = tipoBuscado === "nome" ? porNome : porArtigos
+  const estado: EstadoConsulta<unknown> = tipoBuscado === "nome" ? porNome : porTema
 
   // Guarda o total da busca para a paginação não sumir enquanto a próxima página carrega.
   const [totalConhecido, setTotalConhecido] = useState({ chave: "", total: 0 })
@@ -278,8 +272,8 @@ export function PesquisaPage() {
   let total = 0
   if (tipoBuscado === "nome") {
     total = totalConhecido.chave === chaveBusca ? totalConhecido.total : 0
-  } else if (porArtigos.status === "sucesso") {
-    total = porArtigos.dados.length
+  } else if (porTema.status === "sucesso") {
+    total = porTema.dados.length
   }
 
   // O OpenAlex só pagina até o 10.000º resultado de uma busca.
@@ -288,13 +282,14 @@ export function PesquisaPage() {
   const paginaAtual = Math.min(pagina, totalPaginas)
   const primeiro = (paginaAtual - 1) * POR_PAGINA
 
-  const pesquisadoresDaPagina = tipoBuscado === "nome" && porNome.status === "sucesso" ? porNome.dados.resultados : []
-  const artigosDaPagina =
-    tipoBuscado === "artigos" && porArtigos.status === "sucesso"
-      ? porArtigos.dados.slice(primeiro, primeiro + POR_PAGINA)
-      : []
-  const linhasNaPagina = tipoBuscado === "artigos" ? artigosDaPagina.length : pesquisadoresDaPagina.length
-  const colunas = tipoBuscado === "artigos" ? COLUNAS_ARTIGOS : COLUNAS_PESQUISADORES
+  let pesquisadoresDaPagina: Pesquisador[] = []
+  if (tipoBuscado === "nome" && porNome.status === "sucesso") {
+    pesquisadoresDaPagina = porNome.dados.resultados
+  } else if (tipoBuscado === "artigos" && porTema.status === "sucesso") {
+    pesquisadoresDaPagina = porTema.dados.slice(primeiro, primeiro + POR_PAGINA)
+  }
+  const linhasNaPagina = pesquisadoresDaPagina.length
+  const colunas = tipoBuscado === "artigos" ? COLUNAS_TEMA : COLUNAS_PESQUISADORES
 
   const filtrosAtivos = termo !== "" || tipo !== TIPO_PADRAO || busca !== null
 
@@ -304,14 +299,16 @@ export function PesquisaPage() {
     setBusca(null)
   }
 
-  const abrir = (item: Selecionado) => {
-    setSelecionado(item)
+  const abrir = (pesquisador: Pesquisador) => {
+    setSelecionado(pesquisador)
     setPainelAberto(true)
   }
 
   let descricao = "Digite um termo e clique em Pesquisar."
   if (tipoBuscado === "instituicoes") {
     descricao = "A busca por instituição ainda não está disponível."
+  } else if (estado.status === "carregando" && tipoBuscado === "artigos") {
+    descricao = "Buscando… a busca por tema percorre muitos artigos e pode levar alguns minutos."
   } else if (estado.status === "carregando") {
     descricao = "Buscando…"
   } else if (estado.status === "erro") {
@@ -319,7 +316,7 @@ export function PesquisaPage() {
   } else if (estado.status === "sucesso" && tipoBuscado === "nome") {
     descricao = `${total === 1 ? "1 pesquisador encontrado" : `${formatNumber(total)} pesquisadores encontrados`}. Clique em um nome para ver os detalhes.`
   } else if (estado.status === "sucesso") {
-    descricao = `${total === 1 ? "1 artigo" : `${total} artigos`} mais próximos do tema, do mais ao menos relevante. Clique em um título para ver os detalhes.`
+    descricao = `${total === 1 ? "1 pesquisador" : `${formatNumber(total)} pesquisadores`} com artigos sobre o tema, da maior para a menor nota de citações. Clique em um nome para ver os detalhes.`
   }
 
   return (
@@ -441,25 +438,27 @@ export function PesquisaPage() {
                   </>
                 )}
                 {pesquisadoresDaPagina.map((p) => (
-                  <LinhaResultado key={p.id} titulo={p.nome} onAbrir={() => abrir({ tipo: "pesquisador", pesquisador: p })}>
-                    <td className="px-4 py-3">{ouSemInformacao(p.regiao)}</td>
-                    <td className="px-4 py-3">{ouSemInformacao(p.uf)}</td>
-                    <td className="px-4 py-3">{ouSemInformacao(p.formacao)}</td>
-                    <td className="px-4 py-3">{ouSemInformacao(p.instituicao)}</td>
-                    <td className="px-4 py-3">{ouSemInformacao(p.curso)}</td>
-                    <td className="px-4 py-3">{ouSemInformacao(rotuloConceito(p.conceitoCurso))}</td>
-                  </LinhaResultado>
-                ))}
-                {artigosDaPagina.map((a) => (
-                  <LinhaResultado
-                    key={a.id}
-                    titulo={a.titulo ?? "Sem título"}
-                    onAbrir={() => abrir({ tipo: "artigo", artigo: a })}
-                  >
-                    <td className="px-4 py-3">{ouSemInformacao(resumirAutores(a.autores))}</td>
-                    <td className="px-4 py-3 tabular-nums">{ouSemInformacao(a.ano)}</td>
-                    <td className="px-4 py-3">{ouSemInformacao(a.fonte)}</td>
-                    <td className="px-4 py-3 tabular-nums">{formatNumber(a.citacoes)}</td>
+                  <LinhaResultado key={p.id} titulo={p.nome} onAbrir={() => abrir(p)}>
+                    {tipoBuscado === "artigos" ? (
+                      <>
+                        <td className="px-4 py-3 tabular-nums">
+                          {ouSemInformacao(p.notaCitacoes === null ? null : notaFormatter.format(p.notaCitacoes))}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums">
+                          {ouSemInformacao(p.totalCitacoes === null ? null : formatNumber(p.totalCitacoes))}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums">{formatNumber(p.artigos.length)}</td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-4 py-3">{ouSemInformacao(p.regiao)}</td>
+                        <td className="px-4 py-3">{ouSemInformacao(p.uf)}</td>
+                        <td className="px-4 py-3">{ouSemInformacao(p.formacao)}</td>
+                        <td className="px-4 py-3">{ouSemInformacao(p.instituicao)}</td>
+                        <td className="px-4 py-3">{ouSemInformacao(p.curso)}</td>
+                        <td className="px-4 py-3">{ouSemInformacao(rotuloConceito(p.conceitoCurso))}</td>
+                      </>
+                    )}
                   </LinhaResultado>
                 ))}
               </tbody>
@@ -479,16 +478,7 @@ export function PesquisaPage() {
         </CardContent>
       </Card>
 
-      <PesquisadorSheet
-        pesquisador={selecionado?.tipo === "pesquisador" ? selecionado.pesquisador : null}
-        open={painelAberto && selecionado?.tipo === "pesquisador"}
-        onOpenChange={setPainelAberto}
-      />
-      <ArtigoSheet
-        artigo={selecionado?.tipo === "artigo" ? selecionado.artigo : null}
-        open={painelAberto && selecionado?.tipo === "artigo"}
-        onOpenChange={setPainelAberto}
-      />
+      <PesquisadorSheet pesquisador={selecionado} open={painelAberto} onOpenChange={setPainelAberto} />
     </div>
   )
 }

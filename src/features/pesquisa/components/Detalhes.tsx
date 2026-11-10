@@ -1,6 +1,6 @@
 import { ExternalLinkIcon } from "lucide-react"
 
-/** Blocos dos painéis de detalhe da Pesquisa (PesquisadorSheet e ArtigoSheet). */
+/** Blocos do painel de detalhes da Pesquisa (PesquisadorSheet). */
 
 export function Secao({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (

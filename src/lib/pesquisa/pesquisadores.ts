@@ -1,7 +1,9 @@
 /**
- * Pesquisadores da aba Pesquisa, vindos da api_pesquisadores (que consulta o
- * OpenAlex). A API ainda não tem região, UF, formação, curso, conceito CAPES
- * etc.: esses campos ficam `null` (ou vazios) e a tela mostra "Sem informação".
+ * Pesquisadores da aba Pesquisa, vindos da api_pesquisadores: por nome
+ * (GET /authors, OpenAlex) ou por tema (GET /researchers, lambda
+ * search-pesquisadores). A API ainda não tem região, UF, formação, curso,
+ * conceito CAPES etc.: esses campos ficam `null` (ou vazios) e a tela mostra
+ * "Sem informação".
  */
 import { apiGet } from "@/lib/api/client"
 
@@ -39,8 +41,12 @@ export interface Pesquisador {
   /** Conceito CAPES do curso (1 a 7). Na tela aparece só o rótulo, nunca o número. */
   conceitoCurso: number | null
   formacoes: Formacao[]
-  /** Títulos dos artigos; GET /authors ainda não traz. */
+  /** Títulos dos artigos; só a busca por tema traz (os ligados ao tema). */
   artigos: string[]
+  /** Nota de 0 a 100 pelas citações desses artigos; só na busca por tema. */
+  notaCitacoes: number | null
+  /** Soma das citações desses artigos; só na busca por tema. */
+  totalCitacoes: number | null
   curriculoUrl: string | null
   orcidUrl: string | null
   openAlexUrl: string | null
@@ -86,6 +92,8 @@ function pesquisador(dados: Pick<Pesquisador, "id" | "nome"> & Partial<Pesquisad
     conceitoCurso: null,
     formacoes: [],
     artigos: [],
+    notaCitacoes: null,
+    totalCitacoes: null,
     curriculoUrl: null,
     orcidUrl: null,
     openAlexUrl: null,
@@ -137,4 +145,43 @@ export async function buscarPesquisadoresPorNome(
       }),
     ),
   }
+}
+
+/** Contrato de `ResearcherRead` da API (app/schemas/researcher.py). */
+interface ResearcherWorkRead {
+  id: string
+  title: string | null
+  publication_year: number | null
+  cited_by_count: number
+  relevance_score: number | null
+}
+
+interface ResearcherRead {
+  id: string
+  name: string
+  total_citations: number
+  citation_score: number
+  works: ResearcherWorkRead[]
+}
+
+/** Limite de GET /researchers: a lambda parte da busca semântica do OpenAlex. */
+export const MAX_CARACTERES_TEMA = 2000
+
+/**
+ * Busca por tema (GET /researchers): o termo vai para a busca semântica da
+ * lambda, que devolve os autores dos artigos mais próximos dele. Vêm todos de
+ * uma vez, já da maior para a menor nota de citações. Pode levar minutos.
+ */
+export async function buscarPesquisadoresPorTema(termo: string, signal?: AbortSignal): Promise<Pesquisador[]> {
+  const researchers = await apiGet<ResearcherRead[]>("/researchers", { query: termo }, signal)
+  return researchers.map((researcher) =>
+    pesquisador({
+      id: researcher.id,
+      nome: researcher.name,
+      artigos: researcher.works.map((work) => work.title ?? "Sem título"),
+      notaCitacoes: researcher.citation_score,
+      totalCitacoes: researcher.total_citations,
+      openAlexUrl: `https://openalex.org/${researcher.id}`,
+    }),
+  )
 }
